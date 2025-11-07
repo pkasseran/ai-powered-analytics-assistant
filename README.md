@@ -99,7 +99,7 @@ ai-powered-analytics-assistant/
 
 ## Quick start
 
-1) Installations
+1) Installation
 
 ```bash
 # Clone and navigate to project
@@ -168,6 +168,7 @@ If you prefer not to run MCP, keep `MCP_ENABLED=0` and the app will fall back to
 5) Run the Streamlit UI:
 
 ```bash
+cd code
 streamlit run code/ada_streamlit.py
 ```
 
