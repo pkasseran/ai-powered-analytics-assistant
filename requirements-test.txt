@@ -1,0 +1,5 @@
+pytest>=8.4
+pytest-asyncio>=0.23
+# Demo dependencies used in code/_demos
+ipython>=8.0
+tiktoken>=0.7

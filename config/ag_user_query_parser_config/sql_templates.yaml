@@ -1,0 +1,26 @@
+# Maps (metric, time_grain, group_by_count) patterns to a template id for Agent 2
+# The downstream agent will use the id to pick an actual SQL template.
+rules:
+  - when:
+      metric: revenue
+      time_grain: daily
+      group_by_count: 1
+    template_id: daily_metric_by_one_dimension
+
+  - when:
+      metric: revenue
+      time_grain: monthly
+      group_by_count: 1
+    template_id: monthly_metric_by_one_dimension
+
+  - when:
+      metric: revenue
+      time_grain: monthly
+      group_by_count: 0
+    template_id: monthly_metric_overall
+
+  - when:
+      metric: units_sold
+      time_grain: daily
+      group_by_count: 1
+    template_id: daily_units_by_one_dimension

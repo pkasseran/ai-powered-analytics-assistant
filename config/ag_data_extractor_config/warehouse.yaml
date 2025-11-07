@@ -1,0 +1,184 @@
+dialect: postgres
+default_schema: public
+
+tables:
+  fact_sales:
+    key: sale_id
+    columns: [product_sk, date_sk, customer_sk, salesperson_sk, region_sk, quantity, unit_price, revenue, sales_cost, budget_revenue]
+
+  dim_product:
+    key: product_sk
+    columns: [product_sk, product_name, category]
+
+  dim_customer:
+    key: customer_sk
+    columns: [customer_sk, customer_name, segment]
+
+  dim_salesperson:
+    key: salesperson_sk
+    columns: [salesperson_sk, salesperson_name, region_sk]
+
+  dim_region:
+    key: region_sk
+    columns: [region_sk, region_name, country]
+
+  dim_date:
+    key: date_sk
+    columns: [date_sk, date, year]
+
+
+joins:
+  fact_sales:
+    dim_product:     "fact_sales.product_sk = dim_product.product_sk"
+    dim_customer:    "fact_sales.customer_sk = dim_customer.customer_sk"
+    dim_salesperson: "fact_sales.salesperson_sk = dim_salesperson.salesperson_sk"
+    dim_region:      "fact_sales.region_sk = dim_region.region_sk"
+    dim_date:        "fact_sales.date_sk = dim_date.date_sk"
+
+  # helpful joins for category alignment / budget rollups
+  dim_product:
+    dim_category: "dim_product.category = dim_category.category_name"
+
+metrics:
+  actual_revenue:
+    label: "Actual Revenue"
+    expr:
+      postgres: "COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price)"
+    default_agg: SUM
+  budget_revenue:
+    label: "Budget Revenue"
+    expr:
+      postgres: "fact_sales.budget_revenue"
+    default_agg: SUM
+  units_sold:
+    label: "Units Sold"
+    expr:
+      postgres: "fact_sales.quantity"
+    default_agg: SUM
+  avg_selling_price:
+    label: "Average Selling Price"
+    expr:
+      postgres: "fact_sales.unit_price"
+    default_agg: AVG
+  gross_margin:
+    label: "Gross Margin"
+    expr:
+      postgres: "(COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) - COALESCE(fact_sales.sales_cost, 0))"
+    default_agg: SUM
+
+dimensions:
+  product:
+    table: dim_product
+    display: product_name
+    join_from_fact: "fact_sales.product_sk = dim_product.product_sk"
+    synonyms: [product, item, sku, product_name, name]
+
+  category:
+    table: dim_product
+    display: category
+    join_from_fact: "fact_sales.product_sk = dim_product.product_sk"
+    synonyms: [category, segment, family]
+
+  customer:
+    table: dim_customer
+    display: customer_name
+    join_from_fact: "fact_sales.customer_sk = dim_customer.customer_sk"
+    synonyms: [customer, client, buyer, account, customer_name, name]
+
+  customer_segment:
+    table: dim_customer
+    display: segment
+    join_from_fact: "fact_sales.customer_sk = dim_customer.customer_sk"
+    synonyms: [segment, tier, customer_segment]
+
+  salesperson:
+    table: dim_salesperson
+    display: salesperson_name
+    join_from_fact: "fact_sales.salesperson_sk = dim_salesperson.salesperson_sk"
+    synonyms: [sales, rep, seller, agent, account manager, salesperson]
+
+  region:
+    table: dim_region
+    display: region_name
+    join_from_fact: "fact_sales.region_sk = dim_region.region_sk"
+    synonyms: [region, sales region, area, territory]
+
+  country:
+    table: dim_region
+    display: country
+    join_from_fact: "fact_sales.region_sk = dim_region.region_sk"
+    synonyms: [country, nation]
+
+time_filters:
+  this_year:
+    synonyms: ["this year", "current year", "ytd"]
+    postgres: "date_trunc('year', dim_date.date) = date_trunc('year', CURRENT_DATE)"
+  last_year:
+    synonyms: ["last year", "previous year"]
+    postgres: "date_trunc('year', dim_date.date) = date_trunc('year', CURRENT_DATE) - interval '1 year'"
+  this_month:
+    synonyms: ["this month", "current month", "mtm"]
+    postgres: "date_trunc('month', dim_date.date) = date_trunc('month', CURRENT_DATE)"
+  last_month:
+    synonyms: ["last month", "previous month", "pm"]
+    postgres: "date_trunc('month', dim_date.date) = date_trunc('month', CURRENT_DATE) - interval '1 month'"
+  last_30d:
+    synonyms: ["last 30 days", "past 30 days", "last month rolling"]
+    postgres: "dim_date.date >= CURRENT_DATE - interval '30 days'"
+  last_90d:
+    synonyms: ["last 90 days", "past 90 days", "last quarter rolling"]
+    postgres: "dim_date.date >= CURRENT_DATE - interval '90 days'"
+  last_180d:
+    synonyms: ["last 180 days", "past 180 days", "last half year rolling"]
+    postgres: "dim_date.date >= CURRENT_DATE - interval '180 days'"
+  past_12_months:
+    synonyms: ["past 12 months", "last 12 months", "rolling year"]
+    postgres: "dim_date.date >= CURRENT_DATE - interval '12 months'"
+  past_24_months:
+    synonyms: ["past 24 months", "last 24 months", "rolling 2 years"]
+    postgres: "dim_date.date >= CURRENT_DATE - interval '24 months'"
+  ytd:
+    synonyms: ["year to date", "ytd"]
+    postgres: "date_trunc('year', dim_date.date) = date_trunc('year', CURRENT_DATE) AND dim_date.date <= CURRENT_DATE"
+  past_3_years:
+    synonyms: ["past 3 years", "last 3 years", "rolling 3 years"]
+    postgres: "dim_date.date >= make_date(extract(year from current_date)::int - 2, 1, 1)"
+  past_2_years:
+    synonyms: ["past 2 years", "last 2 years", "rolling 2 years"]
+    postgres: "dim_date.date >= make_date(extract(year from current_date)::int - 1, 1, 1)"
+
+synonyms:
+  metric:
+    actual_revenue: [actual revenue, revenue, sales, turnover, takings]
+    units_sold: [units, quantity, volume, qty]
+    avg_selling_price: [avg price, average price, asp, unit price]
+    budget_revenue: [budget, budget sales, target, plan, budget revenue, budgeted revenue, planned revenue]
+  dimension:
+    product: [product, item, sku, product name, name]
+    category: [category, segment, family]
+    budget_category: [category, product category]
+    customer: [customer, client, buyer, account, name]
+    customer_segment: [segment, tier]
+    salesperson: [salesperson, sales, rep, seller, agent, account manager]
+    region: [region, sales region, area, territory]
+    country: [country, nation]
+  sort:
+    top: [top, highest, best]
+    bottom: [bottom, lowest, worst]
+
+defaults:
+  order_dir: DESC
+  limit: 5
+
+number_words:
+  one: 1
+  two: 2
+  three: 3
+  four: 4
+  five: 5
+  six: 6
+  seven: 7
+  eight: 8
+  nine: 9
+  ten: 10
+  twenty: 20

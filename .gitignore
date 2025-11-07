@@ -1,0 +1,28 @@
+# Python venvs & caches
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+
+# OS files
+.DS_Store
+
+# Logs: keep folder, ignore only .log files inside it
+logs/*.log
+logs/**/*.log
+!logs/.gitkeep
+
+# Environment files
+.env
+
+# Ignore docs folder at repo root
+/docs/
+
+# Ignore demos folder under code root
+/code/_demos/
+
+# Ignore legacy YAML snapshots under config
+/config/**/*_old.yaml
+
+# Ignore anything in the setup directory that is _old
+/setup/**/*_old.*

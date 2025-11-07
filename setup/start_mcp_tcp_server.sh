@@ -1,0 +1,1 @@
+python ../code/mcp_server/sql_postgres_tcp_server.py

@@ -1,0 +1,14 @@
+asyncpg>=0.29.0
+mcp>=1.0.0
+langgraph
+langchain-openai
+langchain-community
+pydantic>=2.5
+sqlalchemy>=2.0
+asyncpg
+pandas
+pyyaml
+streamlit
+plotly
+python-dotenv
+psycopg2-binary

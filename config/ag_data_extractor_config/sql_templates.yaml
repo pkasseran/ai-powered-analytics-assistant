@@ -1,0 +1,281 @@
+# sql_templates.yaml
+bundle: |
+  {% macro std_joins() -%}
+  FROM fact_sales
+  JOIN dim_product     ON {{ join_fact_to_product }}
+  JOIN dim_customer    ON {{ join_fact_to_customer }}
+  JOIN dim_salesperson ON {{ join_fact_to_salesperson }}
+  JOIN dim_region      ON {{ join_fact_to_region }}
+  JOIN dim_date        ON {{ join_fact_to_date }}
+  {{ left_join_dim_category }}
+  {{ left_join_budget }}
+  {%- endmacro %}
+
+  {% macro single_metric_select(metric_expr, metric_raw) -%}
+  {{ metric_expr }} AS {{ metric_raw }}
+  {%- endmacro %}
+
+  {% macro multi_metric_select(metrics) -%}
+  {%- for m in metrics -%}
+  {{ m.expr }} AS {{ m.alias }}{{ "," if not loop.last else "" }}
+  {%- endfor -%}
+  {%- endmacro %}
+
+  {% macro multi_metric_agg(metrics, agg_map) -%}
+  {%- for m in metrics -%}
+  {{ agg_map[m.alias] }}({{ m.alias }}) AS {{ m.alias }}{{ "," if not loop.last else "" }}
+  {%- endfor -%}
+  {%- endmacro %}
+
+  {% macro time_grain_expr(tg) -%}
+  {%- if tg == "daily" -%}   dim_date.date::date
+  {%- elif tg == "weekly" -%}date_trunc('week', dim_date.date)::date
+  {%- elif tg == "monthly" -%}date_trunc('month', dim_date.date)::date
+  {%- elif tg == "quarterly" -%}date_trunc('quarter', dim_date.date)::date
+  {%- elif tg == "yearly" -%}date_trunc('year', dim_date.date)::date
+  {%- else -%}{% endif -%}
+  {%- endmacro %}
+
+  {% macro date_alias(tg) -%}
+  {%- if tg == "daily" -%}day
+  {%- elif tg == "weekly" -%}week_start
+  {%- elif tg == "monthly" -%}month_start
+  {%- elif tg == "quarterly" -%}quarter_start
+  {%- elif tg == "yearly" -%}year_start
+  {%- else -%}{% endif -%}
+  {%- endmacro %}
+
+  {% macro tpl_metric_trend_by_grain() -%}
+  WITH base AS (
+    SELECT
+      {{ time_grain_expr(time_grain) }} AS period,
+      {{ single_metric_select(metric_expr, metric_raw) }}
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  )
+  SELECT
+    period,
+    {{ agg }}({{ metric_raw }}) AS {{ metric_alias }}
+  FROM base
+  GROUP BY period
+  ORDER BY period ASC;
+  {%- endmacro %}
+
+  {% macro tpl_metrics_trend_by_grain_wide() -%}
+  WITH base AS (
+    SELECT
+      {{ time_grain_expr(time_grain) }} AS period,
+      {{ multi_metric_select(metrics) }}
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  )
+  SELECT
+    period,
+    {{ multi_metric_agg(metrics, agg_map) }}
+  FROM base
+  GROUP BY period
+  ORDER BY period ASC;
+  {%- endmacro %}
+
+  {% macro tpl_metrics_trend_by_grain_long() -%}
+  WITH base AS (
+    SELECT
+      {{ time_grain_expr(time_grain) }} AS period,
+      {{ multi_metric_select(metrics) }}
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  ),
+  long_base AS (
+    {%- for m in metrics %}
+    SELECT period, '{{ m.label }}'::text AS metric_name, {{ m.alias }}::numeric AS metric_value FROM base
+    {{ "UNION ALL" if not loop.last else "" }}
+    {%- endfor %}
+  )
+  SELECT
+    period,
+    metric_name,
+    {{ agg }}(metric_value) AS value
+  FROM long_base
+  GROUP BY period, metric_name
+  ORDER BY period ASC, metric_name;
+  {%- endmacro %}
+
+  {% macro tpl_metric_by_dimension() -%}
+  WITH base AS (
+    SELECT
+      {{ dim_display }} AS {{ dimension }},
+      {{ single_metric_select(metric_expr, metric_raw) }}
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  )
+  SELECT
+    {{ dimension }},
+    {{ agg }}({{ metric_raw }}) AS {{ metric_alias }}
+  FROM base
+  GROUP BY {{ dimension }}
+  ORDER BY {{ metric_alias }} {{ order_dir }}
+  {{ topn_clause }};
+  {%- endmacro %}
+
+  {% macro tpl_metric_by_dimension_over_time() -%}
+  WITH base AS (
+    SELECT
+      {{ time_grain_expr(time_grain) }} AS period,
+      {{ dim_display }}     AS {{ dimension }},
+      {{ single_metric_select(metric_expr, metric_raw) }}
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  )
+  SELECT
+    period,
+    {{ dimension }},
+    {{ agg }}({{ metric_raw }}) AS {{ metric_alias }}
+  FROM base
+  GROUP BY period, {{ dimension }}
+  ORDER BY period ASC, {{ dimension }};
+  {%- endmacro %}
+
+  {% macro tpl_metric_by_two_dims_snapshot() -%}
+  WITH base AS (
+    SELECT
+      {{ dim1_display }} AS {{ dim1 }},
+      {{ dim2_display }} AS {{ dim2 }},
+      {{ single_metric_select(metric_expr, metric_raw) }}
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  )
+  SELECT
+    {{ dim1 }}, {{ dim2 }},
+    {{ agg }}({{ metric_raw }}) AS {{ metric_alias }}
+  FROM base
+  GROUP BY {{ dim1 }}, {{ dim2 }}
+  ORDER BY {{ metric_alias }} {{ order_dir }}
+  {{ topn_clause }};
+  {%- endmacro %}
+
+  {% macro tpl_metric_by_two_dims_over_time() -%}
+  WITH base AS (
+    SELECT
+      {{ time_grain_expr(time_grain) }} AS period,
+      {{ dim1_display }}    AS {{ dim1 }},
+      {{ dim2_display }}    AS {{ dim2 }},
+      {{ single_metric_select(metric_expr, metric_raw) }}
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  )
+  SELECT
+    period, {{ dim1 }}, {{ dim2 }},
+    {{ agg }}({{ metric_raw }}) AS {{ metric_alias }}
+  FROM base
+  GROUP BY period, {{ dim1 }}, {{ dim2 }}
+  ORDER BY period ASC, {{ dim1 }}, {{ dim2 }};
+  {%- endmacro %}
+
+  {% macro tpl_actual_vs_budget_trend_by_grain() -%}
+  WITH base AS (
+    SELECT
+      {{ time_grain_expr(time_grain) }} AS period,
+      {{ revenue_expr }}        AS revenue_raw,
+      {{ revenue_budget_expr }} AS budget_raw
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  )
+  SELECT
+    period,
+    {{ revenue_agg }}(revenue_raw) AS revenue,
+    {{ budget_agg }}(budget_raw)   AS revenue_budget
+  FROM base
+  GROUP BY period
+  ORDER BY period ASC;
+  {%- endmacro %}
+
+  {% macro tpl_actual_budget_variance_by_grain() -%}
+  WITH base AS (
+    SELECT
+      {{ time_grain_expr(time_grain) }} AS period,
+      {{ revenue_expr }}        AS revenue_raw,
+      {{ revenue_budget_expr }} AS budget_raw
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  ),
+  agg AS (
+    SELECT
+      period,
+      {{ revenue_agg }}(revenue_raw) AS revenue,
+      {{ budget_agg }}(budget_raw)   AS budget
+    FROM base
+    GROUP BY period
+  )
+  SELECT
+    period,
+    revenue,
+    budget,
+    (revenue - budget) AS variance,
+    CASE WHEN NULLIF(budget,0) IS NULL THEN NULL
+         ELSE (revenue - budget)::numeric / budget END AS variance_pct
+  FROM agg
+  ORDER BY period ASC;
+  {%- endmacro %}
+
+  {% macro tpl_metrics_by_dimension_snapshot() -%}
+  WITH base AS (
+    SELECT
+      {{ dim_display }} AS {{ dimension }},
+      {{ multi_metric_select(metrics) }}
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  )
+  SELECT
+    {{ dimension }},
+    {{ multi_metric_agg(metrics, agg_map) }}
+  FROM base
+  GROUP BY {{ dimension }}
+  ORDER BY {{ order_metric }} {{ order_dir }}
+  {{ topn_clause }};
+  {%- endmacro %}
+
+  {% macro tpl_metric_trend_explicit_date() -%}
+  WITH base AS (
+    SELECT
+      {{ time_grain_expr(time_grain) }} AS {{ date_alias(time_grain) }},
+      {{ single_metric_select(metric_expr, metric_raw) }}
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  )
+  SELECT
+    {{ date_alias(time_grain) }},
+    {{ agg }}({{ metric_raw }}) AS {{ metric_alias }}
+  FROM base
+  GROUP BY {{ date_alias(time_grain) }}
+  ORDER BY {{ date_alias(time_grain) }} ASC;
+  {%- endmacro %}
+
+  {% macro tpl_metric_yearly_rollup() -%}
+  WITH base AS (
+    SELECT
+      date_trunc('year', dim_date.date)::date AS year_start,
+      {{ single_metric_select(metric_expr, metric_raw) }}
+    {{ std_joins() }}
+    WHERE {{ time_filter }}{{ extra_filter_clause }}
+  )
+  SELECT
+    year_start,
+    {{ agg }}({{ metric_raw }}) AS {{ metric_alias }}
+  FROM base
+  GROUP BY year_start
+  ORDER BY year_start;
+  {%- endmacro %}
+
+macro_map:
+  metric_trend_by_grain: tpl_metric_trend_by_grain
+  metrics_trend_by_grain_wide: tpl_metrics_trend_by_grain_wide
+  metrics_trend_by_grain_long: tpl_metrics_trend_by_grain_long
+  metric_by_dimension: tpl_metric_by_dimension
+  metric_by_dimension_over_time: tpl_metric_by_dimension_over_time
+  metric_by_two_dims_snapshot: tpl_metric_by_two_dims_snapshot
+  metric_by_two_dims_over_time: tpl_metric_by_two_dims_over_time
+  actual_vs_budget_trend_by_grain: tpl_actual_vs_budget_trend_by_grain
+  actual_budget_variance_by_grain: tpl_actual_budget_variance_by_grain
+  metrics_by_dimension_snapshot: tpl_metrics_by_dimension_snapshot
+  metric_trend_explicit_date: tpl_metric_trend_explicit_date
+  metric_yearly_rollup: tpl_metric_yearly_rollup

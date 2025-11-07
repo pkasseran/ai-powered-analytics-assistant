@@ -1,0 +1,50 @@
+# Known metrics & dimensions registry (extend as needed)
+metrics:
+  - actual_revenue
+  - budget_revenue
+  - sales
+  - units_sold
+  - gross_margin
+
+dimensions:
+  - product
+  - product_category
+  - customer
+  - region
+  - salesperson
+  - date
+  - month
+  - quarter
+  - year
+  - day
+
+time_grain:
+  - daily
+  - weekly
+  - monthly
+  - quarterly
+  - yearly
+  - this_month
+  - last_month
+  - last_30d
+  - last_90d
+  - ytd
+  
+# Aliases to help mapping (synonyms → canonical name)
+aliases:
+  actual_revenue: [actual_revenue, revenue, turnover, sales_revenue, income, total revenue, total_sales,total sales, total_sales_revenue, total_income, total income, actual_revenue, actual_sales, actual sales, actual income, actual revenue, earning, earnings, total earning, total earnings]
+  budget_revenue: [budget_revenue, revenue_budget, budgeted_revenue, planned_revenue, budget_amount, budgeted_amount, planned_amount, target_revenue, target_amount, budgeted_sales, planned_sales, target_sales]
+  units_sold: [unit_sold, quantity, qty, sales volume, number of units, total units]
+  gross_margin: [gross_margin, profit, profit_margin, gross_profit, gross_profit_margin, profit margin, gross profit]
+  product: [product, product_name, product name, item, sku]
+  product_category: [product_category, category, product group, product category, productcategory]
+  customer: [customer, client, account]
+  salesperson: [salesperson, rep, sales_rep, sales_representative, salesman, salesrep]
+  region: [region, area, territory]
+  month: [month]
+  week: [week]
+  quarter: [quarter, q1, q2, q3, q4]
+  year: [year, yr]
+  day: [day, date]
+
+
