@@ -1,0 +1,57 @@
+=== GENERAL PERFORMANCE QUESTIONS ===
+How has total income changed month by month this year?
+Compare actual sales and budgeted revenue by quarter.
+How has profit margin trended across product categories?
+How do total units sold and overall revenue compare year over year?
+What were our total earnings and profit over the last 90 days? XX
+
+=== PRODUCT & CATEGORY INSIGHTS ===
+Which products brought in the most revenue this month?
+Show profit margins by product category for last month.
+How do actual sales by product category compare to the budget?
+What are the top 10 products by income in the past 30 days?
+Show the trend of units sold for each product category over the past year.
+
+=== CUSTOMER & SALESPERSON ANALYSIS ===
+Show total revenue by customer for the past 90 days.
+Which salesperson achieved the highest profit margin this month?
+Compare total sales by region and salesperson.
+List the top 5 customers by total income year to date.
+Show revenue versus budgeted revenue by region.
+
+=== REGIONAL PERFORMANCE ===
+Compare revenue across regions for the last quarter.
+Which region sold the most units this month?
+Show profit margin by region and product category.
+How have regional sales trended over the last 12 months?
+
+=== TIME-BASED TREND ANALYSIS ===
+Show monthly income trends for 2025.
+Compare weekly sales and budgeted targets for the past 90 days.
+What’s the day-by-day revenue trend for this month?
+Summarize quarterly profit margins by region.
+Show year-to-date revenue by product category.
+
+=== COMPARISON & DEVIATION QUESTIONS ===
+What’s the difference between actual revenue and the budget by month?
+Which product category underperformed against its budget last month?
+Show profit margin percentage by product for this year.
+Which region exceeded its sales targets last quarter?
+
+=== FILTERED OR FOCUSED INSIGHTS ===
+Show revenue for the Electronics category by month.
+Show profit margin for the APAC region over the last 30 days.
+Compare sales for John Smith this month.
+Show daily units sold for Laptop Pro last week.
+
+=== DERIVED OR COMPOSITE METRICS ===
+What’s the profit margin percentage by region this year?
+Show average revenue per customer for the last 90 days.
+Which product category has the highest sales per unit?
+Show average income per salesperson by month.
+
+=== EXECUTIVE-LEVEL SUMMARIES ===
+Give me a monthly summary of income, sales volume, and profit margin.
+Summarize regional performance versus budget for this quarter.
+Show the top 5 product categories contributing most to total revenue year to date.
+Provide an overview of sales and profitability trends for last year.
