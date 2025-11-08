@@ -168,14 +168,14 @@ If you prefer not to run MCP, keep `MCP_ENABLED=0` and the app will fall back to
 5) Run the Streamlit UI:
 
 ```bash
-cd code
+cd ai-powered-analytics-assistant
 streamlit run code/ada_streamlit.py
 ```
 
 - Open the URL shown by Streamlit, enter a question (e.g., "Show monthly revenue by product in 2025."), and click "Send request to Agent".
 - Logs: see `logs/` (one JSON log file per session by default).
 
-
+<img src="ada-snapshot_1000.png" alt="Agent Workflow" width="800" height="500">
 ## Configuration
 
 - Main settings: `code/config/settings.py` (reads env vars and resolves paths)
