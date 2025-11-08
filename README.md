@@ -10,6 +10,8 @@ A production‑oriented, multi‑agent system for self‑service BI. It turns na
 - Optional MCP Postgres server for read‑only queries with limits/timeouts
 - JSON structured logging with per‑session correlation in `logs/`
 
+<img src="ada-snapshot_1000.png" alt="Agent Workflow" width="800" height="500">
+
 ## Tech stack
 
 - Python, Streamlit, Plotly
@@ -175,7 +177,7 @@ streamlit run code/ada_streamlit.py
 - Open the URL shown by Streamlit, enter a question (e.g., "Show monthly revenue by product in 2025."), and click "Send request to Agent".
 - Logs: see `logs/` (one JSON log file per session by default).
 
-<img src="ada-snapshot_1000.png" alt="Agent Workflow" width="800" height="500">
+
 ## Configuration
 
 - Main settings: `code/config/settings.py` (reads env vars and resolves paths)
