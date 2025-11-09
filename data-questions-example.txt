@@ -3,7 +3,7 @@ How has total income changed month by month this year?
 Compare actual sales and budgeted revenue by quarter.
 How has profit margin trended across product categories?
 How do total units sold and overall revenue compare year over year?
-What were our total earnings and profit over the last 90 days? XX
+What were our total earnings and profit over the last 90 days?
 
 === PRODUCT & CATEGORY INSIGHTS ===
 Which products brought in the most revenue this month?
