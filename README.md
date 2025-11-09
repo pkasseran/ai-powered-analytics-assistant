@@ -163,7 +163,7 @@ If you prefer not to run MCP, keep `MCP_ENABLED=0` and the app will fall back to
  cd setup
 ./ start_mcp_tcp_server.sh # for MacOS or Linux
 # or
-./start_mcp_tcp_server.ps1 # for Windowns
+./start_mcp_tcp_server.ps1 # for Windows
 
 ```
 
