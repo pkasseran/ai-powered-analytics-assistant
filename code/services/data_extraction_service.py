@@ -39,8 +39,9 @@ class DataExtractionService:
     def run_query(self, sql: str) -> pd.DataFrame:
         # Prefer MCP when available
         # Check if MCP connection is available
+        test_conn_ok, test_conn_msg = self.mcp.test_connection()
         if self.mcp is not None:
-            if self.use_mcp and self.mcp.test_connection():
+            if self.use_mcp and test_conn_ok:
                 log.info("Running query via MCP sql.query...")
                 log.info("Running SQL: %s", sql)
                 resp = self.mcp.query(sql, params=None, limit=getattr(SETTINGS, "MCP_SQL_MAX_ROWS", None))

@@ -25,8 +25,9 @@ class SQLValidationService:
     def validate(self, sql: str) -> Tuple[bool, Optional[Dict]]:
         # Prefer MCP when available
         # Check if MCP connection is available
+        test_conn_ok, test_conn_msg = self.mcp.test_connection()
         if self.mcp is not None:
-            if self.use_mcp and self.mcp.test_connection():
+            if self.use_mcp and test_conn_ok:
                 log.info("Validating SQL via MCP...")
                 ok, msg = self.mcp.validate(sql)
                 if ok:
