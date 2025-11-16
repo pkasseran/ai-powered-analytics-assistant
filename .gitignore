@@ -24,5 +24,8 @@ logs/**/*.log
 # Ignore legacy YAML snapshots under config
 /config/**/*_old.yaml
 
+# Ignore any file *_old.* under code
+/code/**/*_old.*
+
 # Ignore anything in the setup directory that is _old
 /setup/**/*_old.*

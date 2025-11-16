@@ -1,3 +1,4 @@
+import contextvars
 import logging
 import json
 import uuid
@@ -184,6 +185,91 @@ def log_dataset(logger: logging.Logger, rows: int, cols: int, sample: Optional[A
     payload.update(meta)
     logger.info(payload)
 
+
+
+# ---------- Global test_id propagation & root handler helpers ----------
+
+# ContextVar to hold an optional test identifier for the current Streamlit run/session
+_test_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("test_id", default=None)
+
+def set_test_id(test_id: Optional[str]) -> None:
+    """
+    Set a test_id that will be attached to all log records created after this call.
+
+    Usage (e.g., in Streamlit before starting a run):
+        set_test_id(user_provided_test_id)
+        install_test_id_factory()  # install once per process/session
+    """
+    _test_id_var.set(test_id)
+
+
+def clear_test_id() -> None:
+    """Clear any previously set test_id for subsequent log records."""
+    _test_id_var.set(None)
+
+
+def install_test_id_factory() -> None:
+    """
+    Install a LogRecordFactory that injects the current test_id (if any)
+    into every LogRecord as the attribute `test_id`.
+
+    Call this once early in your app (e.g., at Streamlit button click) and
+    then call `set_test_id(test_id)` for each run/session.
+    """
+    original_factory = logging.getLogRecordFactory()
+
+    def factory(*args, **kwargs):
+        record = original_factory(*args, **kwargs)
+        tid = _test_id_var.get()
+        if tid is not None:
+            # Attach test_id to the record so JsonFormatter merges it
+            setattr(record, "test_id", tid)
+        return record
+
+    logging.setLogRecordFactory(factory)
+
+
+def mirror_json_handlers_to_root(
+    session_id: str,
+    level: int = logging.INFO,
+    to_console: bool = True,
+    to_file: bool = True,
+    app_name: str = "data_assistant",
+) -> None:
+    """
+    Configure the root logger with JSON handlers that use the given session_id.
+    This ensures ANY logger in the process (e.g., those in code/services/) emits
+    JSON with the same session/session_id and includes propagated fields like test_id.
+
+    Typical usage in Streamlit entry point:
+        install_test_id_factory()
+        set_test_id(test_id)
+        mirror_json_handlers_to_root(session_id)
+    """
+    root = logging.getLogger()
+    root.setLevel(level)
+
+    # Remove existing handlers to avoid duplicates during reruns
+    for h in root.handlers[:]:
+        root.removeHandler(h)
+
+    fmt = JsonFormatter(session_id=session_id)
+
+    if to_file:
+        log_dir = SETTINGS.ROOT_DIR / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        current_day = datetime.now().strftime("%Y-%m-%d")
+        log_file = log_dir / f"{app_name}_{current_day}_root.log"
+        fh = logging.FileHandler(log_file, encoding="utf-8")
+        fh.setFormatter(fmt)
+        fh.setLevel(level)
+        root.addHandler(fh)
+
+    if to_console:
+        sh = logging.StreamHandler()
+        sh.setFormatter(fmt)
+        sh.setLevel(level)
+        root.addHandler(sh)
 
 """
 USAGE EXAMPLE:

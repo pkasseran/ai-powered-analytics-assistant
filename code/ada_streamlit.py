@@ -1,3 +1,4 @@
+import hashlib
 import uuid
 import json
 from pathlib import Path
@@ -11,8 +12,17 @@ from states.agentic_orchestrator_state import AgenticOrchestratorState
 from config.settings import SETTINGS
 # REMOVE the old logger import:
 # from utils.agent_logging import setup_logging
-from utils.agent_logging_json import setup_logging  # new JSON logging mechanism
+from utils.agent_logging_json import (
+    setup_logging,                 # JSON logging mechanism
+    install_test_id_factory,       # injects test_id into every LogRecord
+    set_test_id,                   # sets current test_id (from UI)
+    mirror_json_handlers_to_root,  # ensures all loggers emit JSON with same session_id
+)
 
+
+def compute_query_hash(q: str) -> str:
+    # First 12 chars of SHA-256 hash of the query
+    return hashlib.sha256(q.encode()).hexdigest()[:12]
 
 # ---------------------------
 # Streamlit & Page Setup
@@ -46,6 +56,8 @@ def get_logger():
         )
     return st.session_state.logger
 
+# Prepare global LogRecord factory once per process (safe on reruns)
+install_test_id_factory()
 
 logger = get_logger()
 st.caption(f"Session ID: `{st.session_state.session_id}`")
@@ -58,6 +70,7 @@ semantic_path = Path(SETTINGS.ROOT_DIR) / "config" / "ag_data_extractor_config" 
 semantic = yaml.safe_load(open(semantic_path))
 
 user_query = st.text_input("Enter your data question:", "Show monthly revenue by product in 2025.")
+query_hash = compute_query_hash(user_query)
 run_workflow = st.button("Send request to Agent")
 
 
@@ -65,10 +78,20 @@ run_workflow = st.button("Send request to Agent")
 # Run workflow
 # ---------------------------
 if run_workflow:
-    request_id = str(uuid.uuid4())  # per-run correlation across logs
+    #request_id = str(uuid.uuid4())  # per-run correlation across logs
     status_box = st.empty()
 
-    logger.info({"event": "run_started", "request_id": request_id, "user_query": user_query})
+    # Persist and propagate test_id globally so all logs (including services) carry it
+    st.session_state["query_id"] = query_hash
+    set_test_id(st.session_state["query_id"])
+    mirror_json_handlers_to_root(
+        session_id=st.session_state.session_id,
+        to_console=True,
+        to_file=True,
+        app_name="ada", # consistent with initial logger setup
+    )
+
+    logger.info({"event": "run_started", "user_query": user_query})
 
     try:
         app = build_orchestrator_graph()
@@ -93,7 +116,7 @@ if run_workflow:
                     </div>
                     """
                     status_box.markdown(progress_html, unsafe_allow_html=True)
-                    logger.info({"event": "progress", "request_id": request_id, "message": last_msg})
+                    logger.info({"event": "progress", "message": last_msg})
 
                 final_state = state
 
@@ -107,18 +130,17 @@ if run_workflow:
 
         logger.info({
             "event": "run_state_summary",
-            "request_id": request_id,
             "is_valid": is_valid,
             "processed_count": len(processed)
         })
 
         if not is_valid:
             st.info(f"{validation_message}")
-            logger.info({"event": "run_completed", "request_id": request_id, "status": "invalid", "reason": validation_message})
+            logger.info({"event": "run_completed", "status": "invalid", "reason": validation_message})
         else:
             if not processed:
                 st.warning("No DataQuestions were produced by the parser.")
-                logger.info({"event": "run_completed", "request_id": request_id, "status": "no_dataquestions"})
+                logger.info({"event": "run_completed", "status": "no_dataquestions"})
             else:
                 for i, dq in enumerate(processed):
                     ds = getattr(dq, "dataset", None)
@@ -129,7 +151,6 @@ if run_workflow:
                     st.subheader(f"Question {i+1}: {original_text}")
                     logger.info({
                         "event": "dq_render_start",
-                        "request_id": request_id,
                         "dq_index": i + 1,
                         "original_text": original_text,
                         "has_chart": bool(chart_figure_json),
@@ -149,7 +170,6 @@ if run_workflow:
 
                             logger.info({
                                 "event": "dq_chart_rendered",
-                                "request_id": request_id,
                                 "dq_index": i + 1,
                                 "chart_json_len": len(chart_figure_json)
                             })
@@ -157,7 +177,6 @@ if run_workflow:
                             st.error(f"Could not render chart: {e}")
                             logger.exception({
                                 "event": "dq_chart_render_error",
-                                "request_id": request_id,
                                 "dq_index": i + 1,
                                 "error": str(e)
                             })
@@ -167,13 +186,12 @@ if run_workflow:
                         st.write(narrative)
                         logger.info({
                             "event": "dq_narrative_rendered",
-                            "request_id": request_id,
                             "dq_index": i + 1,
                             "narrative_len": len(narrative)
                         })
 
-                logger.info({"event": "run_completed", "request_id": request_id, "status": "ok"})
+                logger.info({"event": "run_completed", "status": "ok"})
 
     except Exception as e:
-        logger.exception({"event": "run_failed", "request_id": request_id, "error": str(e)})
+        logger.exception({"event": "run_failed", "error": str(e)})
         st.error("Something went wrong. Check logs for details.")
