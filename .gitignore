@@ -12,11 +12,16 @@ logs/*.log
 logs/**/*.log
 !logs/.gitkeep
 
+# Ignore charts folder under logs
+logs/charts/
+
 # Environment files
 .env
 
 # Ignore docs folder at repo root
 /docs/
+
+/evaluate_logs/
 
 # Ignore demos folder under code root
 /code/_demos/

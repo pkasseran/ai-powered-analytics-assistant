@@ -208,6 +208,14 @@ def clear_test_id() -> None:
     _test_id_var.set(None)
 
 
+def get_current_test_id() -> Optional[str]:
+    """Return the current test_id from context (if any)."""
+    try:
+        return _test_id_var.get()
+    except LookupError:
+        return None
+
+
 def install_test_id_factory() -> None:
     """
     Install a LogRecordFactory that injects the current test_id (if any)
