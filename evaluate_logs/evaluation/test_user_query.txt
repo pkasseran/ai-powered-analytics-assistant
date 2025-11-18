@@ -1,0 +1,27 @@
+299dcc77286a: "Show monthly revenue by product in 2025."
+4234a10fc926: "How has total income changed month by month this year?"
+0b9085b7c969: "Show revenue versus budgeted revenue by region."
+13109e03fb60: "What are the top 10 products by income in the past 30 days?"
+4252892a2973: "Show profit margins by product category for last month."
+48e8916662b5: "Show monthly income trends for 2025."
+6038866aab66: "Compare revenue across regions for the last quarter."
+70be6b2b409c: "Which region sold the most units this month?"
+714d5c6e717a: "How have regional sales trended over the last 12 months?"
+7c9f4f70158e: "Compare actual sales and budgeted revenue by quarter."
+8547329ba268: "How has profit margin trended by product category over the past year?"
+85742a4c055c: "Which products brought in the most revenue this month?"
+8acc944fd1f3: "Show profit margin by region and product category."
+8d517c8281bd: "Compare total sales by region and salesperson."
+92fe792ef175: "How do total units sold and overall revenue compare year over year?"
+9a720866e909: "How do actual sales by product category compare to the budget?"
+b63e0ff814ae: "Show the trend of units sold for each product category over the past year."
+d082a13b00a5: "Which salesperson achieved the highest profit margin this month?"
+ddeaaeca94b0: "List the top 5 customers by total income year to date."
+dfea1e7674bb: "What were our total income and profit by month over the last 90 days?"
+fa25acaf6347: "Show total revenue by customer for the past 90 days."
+
+What’s the day-by-day revenue trend for this month?
+Which product category underperformed against its budget last month?
+Which region exceeded its sales targets last quarter?
+Show revenue for the Electronics category by month.
+

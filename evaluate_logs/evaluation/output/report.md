@@ -1,0 +1,64 @@
+# Multi-Agent Analytics Assistant — Evaluation Report
+
+## Overview
+
+- **Total test cases:** 24
+- **Successful runs (status='ok'):** 24 (100.0%)
+- **SQL correctness (vs ground truth):** 24 / 24 (100.0%)
+- **Chart correctness (vs ground truth):** 15 / 24 (62.5%)
+- **Chart accuracy (dataset points match):** 85.7% (379/442 points)
+- **Average total latency:** 19.69 sec
+- **p50 latency:** 16.26 sec
+
+## How metrics are calculated
+
+(All metrics are derived solely from structured log events; script names below refer to logic but the authoritative source is the log content.)
+- Total test cases: Count of distinct test_id values appearing in any log record.
+- Successful runs (status='ok'): Determined from a `run_completed` log event with `status='ok'` for each test_id.
+- SQL correctness (vs ground truth):
+  - Log sources: 'Validating SQL ...' messages, 'SQL validation PASSED' / 'Validation result: OK', and any preceding candidate SQL messages; reference_sql loaded via ground_truth.yaml.
+  - Method: Take the last SQL that passed validation, execute both it and reference_sql, normalize rows (round floats, ISO8601 datetimes), diff with DeepDiff; correct when diff is empty.
+- Chart correctness (vs ground truth):
+  - Log sources: 'chart_full_json' emission or 'Chart JSON preview', plus reference_sql output rows.
+  - Method: Parse chart JSON traces; execute reference_sql; build ground-truth map keyed by (x_column, series_dimension or single-series placeholder) and compare each (x, series, y) with tolerance 1e-6.
+- Chart accuracy (dataset points match):
+  - Log sources: The 'Data Set:' fenced JSON block in the chart prompt and the chart JSON ('chart_full_json' or preview).
+  - Method: Build dataset map keyed by (x, series or placeholder) and measure matched vs total chart points (exact float match within tolerance).
+- Latency metrics: Derived from timestamps of lifecycle events (e.g., run_started to run_completed); p50 is the median of per-test total latencies.
+- Token & Cost Summary:
+  - Log sources: 'llm_usage' structured events with prompt_tokens, completion_tokens, total_tokens, model; cost_usd if present is summed directly.
+  - Method: Aggregate tokens per test_id; totals/averages reported; cost is a direct sum of logged cost_usd fields (if any).
+
+## Token & Cost Summary
+
+- **Total tokens (all tests):** 150028
+- **Average tokens per test:** 6251.2
+
+## Per-Test Metrics
+
+| Test ID | Status | SQL Correct | Chart Correct | Dataset Points | Dataset Mismatches | Chart Accuracy % | Total Latency (sec) |
+|---------|--------|-------------|---------------|---------------|--------------------|------------------|---------------------|
+| `299dcc77286a` | ok | True | True | 88 | 0 | 100.0% | 49.74 |
+| `4234a10fc926` | ok | True | True | 11 | 0 | 100.0% | 17.59 |
+| `0b9085b7c969` | ok | True | False | 8 | 8 | 0.0% | 17.64 |
+| `13109e03fb60` | ok | True | True | 10 | 0 | 100.0% | 18.59 |
+| `4252892a2973` | ok | True | True | 5 | 0 | 100.0% | 14.47 |
+| `48e8916662b5` | ok | True | True | 11 | 0 | 100.0% | 15.72 |
+| `6038866aab66` | ok | True | True | 4 | 0 | 100.0% | 12.65 |
+| `70be6b2b409c` | ok | True | True | 1 | 0 | 100.0% | 10.96 |
+| `714d5c6e717a` | ok | True | True | 52 | 0 | 100.0% | 35.44 |
+| `7c9f4f70158e` | ok | True | False | 12 | 12 | 0.0% | 18.80 |
+| `bf844e7a9d30` | ok | True | True | 65 | 0 | 100.0% | 36.83 |
+| `85742a4c055c` | ok | True | True | 13 | 0 | 100.0% | 15.76 |
+| `8acc944fd1f3` | ok | True | True | 20 | 0 | 100.0% | 17.93 |
+| `8d517c8281bd` | ok | True | False | 11 | 4 | 63.6% | 18.67 |
+| `92fe792ef175` | ok | True | False | 4 | 4 | 0.0% | 16.26 |
+| `9a720866e909` | ok | True | False | 10 | 10 | 0.0% | 15.13 |
+| `b63e0ff814ae` | ok | True | True | 65 | 0 | 100.0% | 27.63 |
+| `d082a13b00a5` | ok | True | False | 1 | 1 | 0.0% | 14.89 |
+| `ddeaaeca94b0` | ok | True | True | 5 | 0 | 100.0% | 15.29 |
+| `dfea1e7674bb` | ok | True | False | 8 | 8 | 0.0% | 15.81 |
+| `e0c22ca0aa8d` | ok | True | True | 7 | 0 | 100.0% | 12.95 |
+| `5515e06cd441` | ok | True | False | 10 | 10 | 0.0% | 16.17 |
+| `62d4a6e5b8e4` | ok | True | False | 6 | 6 | 0.0% | 21.32 |
+| `e8c5e965146e` | ok | True | True | 15 | 0 | 100.0% | 16.26 |

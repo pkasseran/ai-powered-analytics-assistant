@@ -21,8 +21,6 @@ logs/charts/
 # Ignore docs folder at repo root
 /docs/
 
-/evaluate_logs/
-
 # Ignore demos folder under code root
 /code/_demos/
 

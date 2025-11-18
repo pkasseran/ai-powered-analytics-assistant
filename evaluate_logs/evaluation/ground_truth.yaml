@@ -1,0 +1,858 @@
+0b9085b7c969:
+  query: "Show revenue versus budgeted revenue by region."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.revenue,
+        fact_sales.quantity,
+        fact_sales.unit_price,
+        fact_sales.budget_revenue,
+        fact_sales.sales_cost,
+        dim_region.region_name
+      FROM public.fact_sales
+      JOIN public.dim_region ON fact_sales.region_sk = dim_region.region_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= make_date(extract(year from current_date)::int - 2, 1, 1)
+    ),
+    agg AS (
+      SELECT
+        region_name,
+        SUM(COALESCE(base.revenue, base.quantity * base.unit_price)) AS actual_revenue,
+        SUM(base.budget_revenue) AS budget_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      region_name AS region,
+      actual_revenue,
+      budget_revenue
+    FROM agg
+    ORDER BY actual_revenue DESC;
+  expected_chart_type: bar
+  x_column: region
+  series_dimension: actual_revenue
+  expected_metric_columns:
+    - budget_revenue
+  expected_row_count: 4
+
+13109e03fb60:
+  query: "What are the top 10 products by income in the past 30 days?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.product_sk,
+        dim_product.product_name,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) AS actual_revenue
+      FROM public.fact_sales
+      JOIN public.dim_product ON fact_sales.product_sk = dim_product.product_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= CURRENT_DATE - interval '30 days'
+    )
+    , agg AS (
+      SELECT
+        product_name,
+        SUM(actual_revenue) AS actual_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      product_name AS product,
+      actual_revenue
+    FROM agg
+    ORDER BY actual_revenue DESC
+    LIMIT 10;
+  expected_chart_type: bar
+  x_column: product
+  expected_metric_columns:
+    - actual_revenue
+  expected_row_count: 10
+
+299dcc77286a:
+  query: "Show monthly revenue by product in 2025."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.product_sk,
+        dim_product.product_name,
+        dim_date.date,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) AS actual_revenue,
+        dim_date.year
+      FROM public.fact_sales
+      JOIN public.dim_product ON fact_sales.product_sk = dim_product.product_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= make_date(extract(year from current_date)::int - 2, 1, 1)
+        AND dim_date.year = 2025
+    ),
+    agg AS (
+      SELECT
+        date_trunc('month', base.date)::date AS period,
+        base.product_name,
+        SUM(base.actual_revenue) AS actual_revenue
+      FROM base
+      GROUP BY 1, 2
+    )
+    SELECT
+      agg.period,
+      agg.product_name AS product,
+      agg.actual_revenue
+    FROM agg
+    ORDER BY agg.actual_revenue DESC, agg.period ASC, agg.product_name ASC;
+  expected_chart_type: line
+  x_column: period
+  series_dimension: product
+  expected_metric_columns:
+    - actual_revenue
+  expected_row_count: 143
+
+4234a10fc926:
+  query: "How has total income changed month by month this year?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.sale_id,
+        fact_sales.revenue,
+        fact_sales.quantity,
+        fact_sales.unit_price,
+        dim_date.date
+      FROM public.fact_sales
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE date_trunc('year', dim_date.date) = date_trunc('year', CURRENT_DATE)
+    ),
+    agg AS (
+      SELECT
+        date_trunc('month', base.date)::date AS period,
+        SUM(COALESCE(base.revenue, base.quantity * base.unit_price)) AS actual_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      period,
+      actual_revenue
+    FROM agg
+    ORDER BY period ASC, actual_revenue DESC;
+  expected_chart_type: line
+  x_column: period
+  expected_metric_columns:
+    - actual_revenue
+  expected_row_count: 11
+
+4252892a2973:
+  query: "Show profit margins by product category for last month."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        dim_product.category AS product_category,
+        (COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) - COALESCE(fact_sales.sales_cost, 0)) AS gross_margin
+      FROM public.fact_sales
+      JOIN public.dim_product ON fact_sales.product_sk = dim_product.product_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE date_trunc('month', dim_date.date) = date_trunc('month', CURRENT_DATE) - interval '1 month'
+    )
+    , agg AS (
+      SELECT
+        product_category,
+        SUM(gross_margin) AS gross_margin
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      product_category,
+      gross_margin
+    FROM agg
+    ORDER BY gross_margin DESC;
+  expected_chart_type: bar
+  x_column: product_category
+  expected_metric_columns:
+    - gross_margin
+  expected_row_count: 5
+
+48e8916662b5:
+  query: "Show monthly income trends for 2025."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.sale_id,
+        fact_sales.product_sk,
+        fact_sales.date_sk,
+        fact_sales.customer_sk,
+        fact_sales.salesperson_sk,
+        fact_sales.region_sk,
+        fact_sales.quantity,
+        fact_sales.unit_price,
+        fact_sales.revenue,
+        fact_sales.sales_cost,
+        fact_sales.budget_revenue,
+        dim_date.date,
+        dim_date.year,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) AS actual_revenue
+      FROM public.fact_sales
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= make_date(extract(year from current_date)::int - 2, 1, 1)
+        AND dim_date.year = 2025
+    ),
+    agg AS (
+      SELECT
+        date_trunc('month', base.date)::date AS period,
+        SUM(base.actual_revenue) AS actual_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      period,
+      actual_revenue
+    FROM agg
+    ORDER BY actual_revenue DESC, period ASC;
+  expected_chart_type: line
+  x_column: period
+  expected_metric_columns:
+    - actual_revenue
+  expected_row_count: 11
+
+5515e06cd441:
+  query: "Which product category underperformed against its budget last month?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        dim_product.category AS product_category,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) AS actual_revenue,
+        fact_sales.budget_revenue AS budget_revenue,
+        dim_date.date AS date
+      FROM public.fact_sales
+      JOIN public.dim_product ON fact_sales.product_sk = dim_product.product_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE date_trunc('month', dim_date.date) = date_trunc('month', CURRENT_DATE) - interval '1 month'
+    ),
+    agg AS (
+      SELECT
+        date_trunc('month', date)::date AS period,
+        product_category,
+        SUM(actual_revenue) AS actual_revenue,
+        SUM(budget_revenue) AS budget_revenue
+      FROM base
+      GROUP BY 1, 2
+    )
+    SELECT
+      product_category,
+      actual_revenue,
+      budget_revenue,
+      period
+    FROM agg
+    ORDER BY actual_revenue ASC;
+  expected_chart_type: bar
+  x_column: product_category
+  series_dimension: actual_revenue
+  expected_metric_columns:
+    - budget_revenue
+    - period
+  expected_row_count: 5
+
+6038866aab66:
+  query: "Compare revenue across regions for the last quarter."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.revenue,
+        fact_sales.quantity,
+        fact_sales.unit_price,
+        fact_sales.sales_cost,
+        fact_sales.budget_revenue,
+        dim_region.region_name
+      FROM public.fact_sales
+      JOIN public.dim_region ON fact_sales.region_sk = dim_region.region_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= CURRENT_DATE - interval '90 days'
+        AND date_trunc('quarter', dim_date.date) = date_trunc('quarter', CURRENT_DATE - interval '3 month')
+    ),
+    agg AS (
+      SELECT
+        region_name,
+        SUM(COALESCE(base.revenue, base.quantity * base.unit_price)) AS actual_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      region_name AS region,
+      actual_revenue
+    FROM agg
+    ORDER BY actual_revenue DESC;
+  expected_chart_type: bar
+  x_column: region
+  expected_metric_columns:
+    - actual_revenue
+  expected_row_count: 4
+
+62d4a6e5b8e4:
+  query: "Which region exceeded its sales targets last quarter?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.revenue,
+        fact_sales.quantity,
+        fact_sales.unit_price,
+        fact_sales.budget_revenue,
+        fact_sales.sales_cost,
+        dim_region.region_name,
+        dim_date.date
+      FROM public.fact_sales
+      JOIN public.dim_region ON fact_sales.region_sk = dim_region.region_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE date_trunc('year', dim_date.date) = date_trunc('year', CURRENT_DATE) - interval '1 year'
+    ),
+    agg AS (
+      SELECT
+        date_trunc('quarter', base.date)::date AS period,
+        base.region_name,
+        SUM(COALESCE(base.revenue, base.quantity * base.unit_price)) AS actual_revenue,
+        SUM(base.budget_revenue) AS budget_revenue
+      FROM base
+      GROUP BY 1, 2
+    ),
+    filtered AS (
+      SELECT *
+      FROM agg
+      WHERE actual_revenue > budget_revenue
+    )
+    SELECT
+      period,
+      region_name AS region,
+      actual_revenue,
+      budget_revenue
+    FROM filtered
+    ORDER BY actual_revenue DESC, period ASC, region ASC;
+  expected_chart_type: bar
+  x_column: period
+  series_dimension: region
+  expected_metric_columns:
+    - actual_revenue
+    - budget_revenue
+  expected_row_count: 5
+
+70be6b2b409c:
+  query: "Which region sold the most units this month?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.quantity AS quantity,
+        dim_region.region_name AS region_name,
+        dim_date.date AS date
+      FROM public.fact_sales
+      JOIN public.dim_region ON fact_sales.region_sk = dim_region.region_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE date_trunc('month', dim_date.date) = date_trunc('month', CURRENT_DATE)
+    )
+    , agg AS (
+      SELECT
+        region_name,
+        SUM(quantity) AS units_sold
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      region_name AS region,
+      units_sold
+    FROM agg
+    ORDER BY units_sold DESC
+    LIMIT 1;
+  expected_chart_type: bar
+  x_column: region
+  expected_metric_columns:
+    - units_sold
+  expected_row_count: 1
+
+714d5c6e717a:
+  query: "How have regional sales trended over the last 12 months?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.region_sk,
+        dim_region.region_name,
+        dim_date.date,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) AS actual_revenue
+      FROM public.fact_sales
+      JOIN public.dim_region ON fact_sales.region_sk = dim_region.region_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= CURRENT_DATE - interval '12 months'
+    ),
+    agg AS (
+      SELECT
+        date_trunc('month', base.date)::date AS period,
+        base.region_name,
+        SUM(base.actual_revenue) AS actual_revenue
+      FROM base
+      GROUP BY 1, 2
+    )
+    SELECT
+      period,
+      region_name AS region,
+      actual_revenue AS sales
+    FROM agg
+    ORDER BY period ASC, region ASC;
+  expected_chart_type: line
+  x_column: period
+  series_dimension: region
+  expected_metric_columns:
+    - sales
+  expected_row_count: 52
+
+7c9f4f70158e:
+  query: "Compare actual sales and budgeted revenue by quarter."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.sale_id,
+        fact_sales.revenue,
+        fact_sales.quantity,
+        fact_sales.unit_price,
+        fact_sales.budget_revenue,
+        dim_date.date
+      FROM public.fact_sales
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= make_date(extract(year from current_date)::int - 2, 1, 1)
+    ),
+    agg AS (
+      SELECT
+        date_trunc('quarter', base.date)::date AS period,
+        SUM(COALESCE(base.revenue, base.quantity * base.unit_price)) AS actual_revenue,
+        SUM(base.budget_revenue) AS budget_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      period,
+      actual_revenue,
+      budget_revenue
+    FROM agg
+    ORDER BY actual_revenue DESC;
+  expected_chart_type: bar
+  x_column: period
+  series_dimension: actual_revenue
+  expected_metric_columns:
+    - budget_revenue
+  expected_row_count: 6
+
+85742a4c055c:
+  query: "Which products brought in the most revenue this month?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        dim_product.product_name AS product,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) AS actual_revenue
+      FROM public.fact_sales
+      JOIN public.dim_product ON fact_sales.product_sk = dim_product.product_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE date_trunc('month', dim_date.date) = date_trunc('month', CURRENT_DATE)
+    )
+    , agg AS (
+      SELECT
+        product,
+        SUM(actual_revenue) AS actual_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      product,
+      actual_revenue
+    FROM agg
+    ORDER BY actual_revenue DESC;
+  expected_chart_type: bar
+  x_column: product
+  expected_metric_columns:
+    - actual_revenue
+  expected_row_count: 13
+
+8acc944fd1f3:
+  query: "Show profit margin by region and product category."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.region_sk,
+        dim_region.region_name,
+        dim_product.category,
+        (COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) - COALESCE(fact_sales.sales_cost, 0)) AS gross_margin
+      FROM public.fact_sales
+      JOIN public.dim_region ON fact_sales.region_sk = dim_region.region_sk
+      JOIN public.dim_product ON fact_sales.product_sk = dim_product.product_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= make_date(extract(year from current_date)::int - 2, 1, 1)
+    )
+    , agg AS (
+      SELECT
+        region_name,
+        category,
+        SUM(gross_margin) AS gross_margin
+      FROM base
+      GROUP BY 1, 2
+    )
+    SELECT
+      region_name AS region,
+      category AS product_category,
+      gross_margin
+    FROM agg
+    ORDER BY gross_margin DESC, region ASC, product_category ASC;
+  expected_chart_type: bar
+  x_column: region
+  series_dimension: product_category
+  expected_metric_columns:
+    - gross_margin
+  expected_row_count: 20
+
+8d517c8281bd:
+  query: "Compare total sales by region and salesperson."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.sale_id,
+        dim_region.region_name,
+        dim_salesperson.salesperson_name,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) AS actual_revenue
+      FROM public.fact_sales
+      JOIN public.dim_region ON fact_sales.region_sk = dim_region.region_sk
+      JOIN public.dim_salesperson ON fact_sales.salesperson_sk = dim_salesperson.salesperson_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= make_date(extract(year from current_date)::int - 2, 1, 1)
+    )
+    , agg AS (
+      SELECT
+        region_name,
+        salesperson_name,
+        SUM(actual_revenue) AS sales
+      FROM base
+      GROUP BY 1, 2
+    )
+    SELECT
+      region_name AS region,
+      salesperson_name AS salesperson,
+      sales
+    FROM agg
+    ORDER BY sales DESC, region ASC, salesperson ASC;
+  expected_chart_type: bar
+  x_column: region
+  series_dimension: salesperson
+  expected_metric_columns:
+    - sales
+  expected_row_count: 8
+
+92fe792ef175:
+  query: "How do total units sold and overall revenue compare year over year?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.sale_id,
+        fact_sales.quantity,
+        fact_sales.unit_price,
+        fact_sales.revenue,
+        fact_sales.sales_cost,
+        fact_sales.budget_revenue,
+        dim_date.date,
+        dim_date.year
+      FROM public.fact_sales
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= make_date(extract(year from current_date)::int - 2, 1, 1)
+    ),
+    agg AS (
+      SELECT
+        date_trunc('year', base.date)::date AS period,
+        base.year,
+        SUM(base.quantity) AS units_sold,
+        SUM(COALESCE(base.revenue, base.quantity * base.unit_price)) AS actual_revenue
+      FROM base
+      GROUP BY 1, 2
+    )
+    SELECT
+      agg.period,
+      agg.year,
+      agg.units_sold,
+      agg.actual_revenue
+    FROM agg
+    ORDER BY agg.units_sold DESC, agg.period ASC, agg.year ASC;
+  expected_chart_type: line
+  x_column: period
+  series_dimension: year
+  expected_metric_columns:
+    - units_sold
+    - actual_revenue
+  expected_row_count: 2
+
+9a720866e909:
+  query: "How do actual sales by product category compare to the budget?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        dim_product.category AS category,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) AS actual_revenue,
+        fact_sales.budget_revenue AS budget_revenue
+      FROM public.fact_sales
+      JOIN public.dim_product ON fact_sales.product_sk = dim_product.product_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= make_date(extract(year from current_date)::int - 2, 1, 1)
+    )
+    , agg AS (
+      SELECT
+        category,
+        SUM(actual_revenue) AS actual_revenue,
+        SUM(budget_revenue) AS budget_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      category,
+      actual_revenue,
+      budget_revenue
+    FROM agg
+    ORDER BY actual_revenue DESC;
+  expected_chart_type: bar
+  x_column: category
+  series_dimension: actual_revenue
+  expected_metric_columns:
+    - budget_revenue
+  expected_row_count: 5
+
+b63e0ff814ae:
+  query: "Show the trend of units sold for each product category over the past year."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.quantity AS quantity,
+        dim_product.category AS category,
+        dim_date.date AS date
+      FROM public.fact_sales
+      JOIN public.dim_product ON fact_sales.product_sk = dim_product.product_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= CURRENT_DATE - interval '12 months'
+    ),
+    agg AS (
+      SELECT
+        date_trunc('month', base.date)::date AS period,
+        base.category,
+        SUM(base.quantity) AS units_sold
+      FROM base
+      GROUP BY 1, 2
+    )
+    SELECT
+      agg.period,
+      agg.category AS product_category,
+      agg.units_sold
+    FROM agg
+    ORDER BY 1 ASC, 2 ASC, 3 DESC;
+  expected_chart_type: line
+  x_column: period
+  series_dimension: product_category
+  expected_metric_columns:
+    - units_sold
+  expected_row_count: 65
+
+bf844e7a9d30:
+  query: "How has profit margin trended by product category over the past year?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.revenue,
+        fact_sales.quantity,
+        fact_sales.unit_price,
+        fact_sales.sales_cost,
+        dim_product.category,
+        dim_date.date
+      FROM public.fact_sales
+      JOIN public.dim_product ON fact_sales.product_sk = dim_product.product_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= CURRENT_DATE - interval '12 months'
+    ),
+    agg AS (
+      SELECT
+        date_trunc('month', base.date)::date AS period,
+        base.category,
+        SUM(COALESCE(base.revenue, base.quantity * base.unit_price) - COALESCE(base.sales_cost, 0)) AS gross_margin
+      FROM base
+      GROUP BY 1, 2
+    )
+    SELECT
+      agg.period,
+      agg.category AS product_category,
+      agg.gross_margin
+    FROM agg
+    ORDER BY agg.gross_margin DESC, agg.period ASC, agg.category ASC;
+  expected_chart_type: line
+  x_column: period
+  series_dimension: product_category
+  expected_metric_columns:
+    - gross_margin
+  expected_row_count: 65
+
+d082a13b00a5:
+  query: "Which salesperson achieved the highest profit margin this month?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.salesperson_sk,
+        dim_salesperson.salesperson_name,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) - COALESCE(fact_sales.sales_cost, 0) AS gross_margin
+      FROM public.fact_sales
+      JOIN public.dim_salesperson ON fact_sales.salesperson_sk = dim_salesperson.salesperson_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE date_trunc('month', dim_date.date) = date_trunc('month', CURRENT_DATE)
+    ),
+    agg AS (
+      SELECT
+        date_trunc('month', dim_date.date)::date AS period,
+        salesperson_name,
+        SUM(gross_margin) AS gross_margin
+      FROM base
+      JOIN public.fact_sales ON base.salesperson_sk = fact_sales.salesperson_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      GROUP BY 1, 2
+    ),
+    ranked AS (
+      SELECT
+        period,
+        salesperson_name,
+        gross_margin,
+        ROW_NUMBER() OVER (ORDER BY gross_margin DESC) AS rn
+      FROM agg
+    )
+    SELECT
+      period,
+      salesperson_name AS salesperson,
+      gross_margin
+    FROM ranked
+    WHERE rn <= 1
+    ORDER BY period ASC, gross_margin DESC;
+  expected_chart_type: bar
+  x_column: period
+  series_dimension: salesperson
+  expected_metric_columns:
+    - gross_margin
+  expected_row_count: 1
+
+ddeaaeca94b0:
+  query: "List the top 5 customers by total income year to date."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.customer_sk,
+        dim_customer.customer_name,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) AS actual_revenue
+      FROM public.fact_sales
+      JOIN public.dim_customer ON fact_sales.customer_sk = dim_customer.customer_sk
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE date_trunc('year', dim_date.date) = date_trunc('year', CURRENT_DATE)
+        AND dim_date.date <= CURRENT_DATE
+    )
+    , agg AS (
+      SELECT
+        customer_name,
+        SUM(actual_revenue) AS actual_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      customer_name AS customer,
+      actual_revenue
+    FROM agg
+    ORDER BY actual_revenue DESC
+    LIMIT 5;
+  expected_chart_type: bar
+  x_column: customer
+  expected_metric_columns:
+    - actual_revenue
+  expected_row_count: 5
+
+dfea1e7674bb:
+  query: "What were our total income and profit by month over the last 90 days?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.sale_id,
+        fact_sales.revenue,
+        fact_sales.quantity,
+        fact_sales.unit_price,
+        fact_sales.sales_cost,
+        dim_date.date
+      FROM public.fact_sales
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE dim_date.date >= CURRENT_DATE - interval '90 days'
+    ),
+    agg AS (
+      SELECT
+        date_trunc('month', base.date)::date AS period,
+        SUM(COALESCE(base.revenue, base.quantity * base.unit_price)) AS actual_revenue,
+        SUM(COALESCE(base.revenue, base.quantity * base.unit_price) - COALESCE(base.sales_cost, 0)) AS gross_margin
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      period,
+      actual_revenue,
+      gross_margin
+    FROM agg
+    ORDER BY actual_revenue DESC, period ASC;
+  expected_chart_type: line
+  x_column: period
+  series_dimension: actual_revenue
+  expected_metric_columns:
+    - gross_margin
+  expected_row_count: 4
+
+e0c22ca0aa8d:
+  query: "What’s the day-by-day revenue trend for this month?"
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        dim_date.date,
+        COALESCE(fact_sales.revenue, fact_sales.quantity * fact_sales.unit_price) AS actual_revenue
+      FROM public.fact_sales
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      WHERE date_trunc('month', dim_date.date) = date_trunc('month', CURRENT_DATE)
+    ),
+    agg AS (
+      SELECT
+        date_trunc('day', base.date)::date AS period,
+        SUM(base.actual_revenue) AS actual_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      period AS date,
+      actual_revenue
+    FROM agg
+    ORDER BY actual_revenue DESC, date ASC;
+  expected_chart_type: line
+  x_column: date
+  expected_metric_columns:
+    - actual_revenue
+  expected_row_count: 7
+
+e8c5e965146e:
+  query: "Show revenue for the Electronics category by month."
+  reference_sql: |
+    WITH base AS (
+      SELECT
+        fact_sales.revenue,
+        fact_sales.quantity,
+        fact_sales.unit_price,
+        fact_sales.budget_revenue,
+        fact_sales.sales_cost,
+        dim_date.date,
+        dim_product.category
+      FROM public.fact_sales
+      JOIN public.dim_date ON fact_sales.date_sk = dim_date.date_sk
+      JOIN public.dim_product ON fact_sales.product_sk = dim_product.product_sk
+      WHERE dim_date.date >= make_date(extract(year from current_date)::int - 2, 1, 1)
+        AND dim_product.category = 'Electronics'
+    ),
+    agg AS (
+      SELECT
+        date_trunc('month', base.date)::date AS period,
+        SUM(COALESCE(base.revenue, base.quantity * base.unit_price)) AS actual_revenue
+      FROM base
+      GROUP BY 1
+    )
+    SELECT
+      period,
+      actual_revenue
+    FROM agg
+    ORDER BY actual_revenue DESC, period ASC;
+  expected_chart_type: line
+  x_column: period
+  expected_metric_columns:
+    - actual_revenue
+  expected_row_count: 15
