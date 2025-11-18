@@ -19,7 +19,7 @@ data_assistant:
           - When it's a **data** question, MUST extract:
             - metrics (exact names if possible and mapped to known metrics provided)
             - dimensions (group-bys. exact names if possible and mapped to known dimensions provided)
-            - time_grain (daily/weekly/monthly/quarterly/yearly) if implied, default to "monthly" if not specified
+            - time_grain (daily/weekly/monthly/quarterly/yearly/AllPeriods) if implied, default to "AllPeriods" if not specified
             - time_range (this_year/last_month/past_30_days/this_month/current_month/YTD/MTD/past_3_years/past_2_years/past_12_months/past_24_months or <start>_to_<end>) if implied, default to "past_3_years" if not specified
             - filters (simple expressions)
             - sort and top_k (e.g., "top 5 by revenue" -> sort='-revenue', top_k=5)
@@ -81,7 +81,7 @@ data_assistant:
             2) data_question: the user request with fields:
               - metrics (exact names)
               - dimensions (group-bys)
-              - time_grain (daily/weekly/monthly/quarterly/yearly/None)
+              - time_grain (daily/weekly/monthly/quarterly/yearly/AllPeriods)
               - time_range (this_year/last_year/last_month/past_30_days/past_90_days/past_180_days/this_month/current_month/YTD/MTD/past_12_months/past_24_months/past_36_months)
               - filters (simple expressions, extra filter apart from the time_range)
               - sort and top_k (e.g., "top 5 by revenue" -> sort='-revenue', top_k=5)
@@ -107,7 +107,7 @@ data_assistant:
 
           2) Aggregation CTE (only if grouping is requested by `time_grain` and/or `dimensions`) e.g. `agg AS ( ... )`:
             - SELECT from `base`.
-            - If `time_grain` is present, construct a single `period` column using `date_trunc('<grain>', <date_col>)::date AS period`.
+            - If `time_grain` is present and not "AllPeriods", construct a single `period` column using `date_trunc('<grain>', <date_col>)::date AS period`.
             - Aggregate requested metrics using their default aggregations from `semantic_config`.
             - GROUP BY `period` (if present) and the requested dimensions.
             - Use **GROUP BY ordinal positions** (1, 2, 3, …), not column aliases.

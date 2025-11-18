@@ -23,7 +23,7 @@ class DataQuestion(BaseModel):
     metrics: List[str] = Field(default_factory=list)
     dimensions: List[str] = Field(default_factory=list)
     # time_grain should be non-optional with a default value
-    time_grain: Literal["daily", "weekly", "monthly", "quarterly", "yearly"] = "monthly"
+    time_grain: Literal["daily", "weekly", "monthly", "quarterly", "yearly", "AllPeriods"] = "AllPeriods"
 
     time_range: Literal["this_year", "last_year", "last_month", "past_30_days", 
                                  "past_90_days", "past_180_days", 
