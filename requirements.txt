@@ -13,3 +13,4 @@ streamlit
 plotly
 python-dotenv
 psycopg2-binary
+deepdiff>=6.3.0
